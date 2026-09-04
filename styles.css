@@ -1,0 +1,619 @@
+
+  :root{
+    --pitch:#0B3D24;
+    --pitch-dark:#082A19;
+    --newsprint:#E9E4D6;
+    --paper-card:#F4F1E8;
+    --ink:#17140F;
+    --ink-soft:#4A4436;
+    --red:#C8291F;
+    --gold:#C9971F;
+    --chalk-blue:#1D4E89;
+    --rule:#C9C2AC;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--newsprint);
+    color:var(--ink);
+    font-family:'Source Serif 4', Georgia, serif;
+    line-height:1.5;
+  }
+  .wrap{max-width:1040px;margin:0 auto;padding:0 20px 80px;}
+  a{color:var(--chalk-blue);}
+
+  /* ---------- Masthead ---------- */
+  .masthead{
+    background:var(--pitch);
+    background-image:
+      linear-gradient(180deg, rgba(0,0,0,.15), rgba(0,0,0,0) 40%),
+      repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0 2px, transparent 2px 40px);
+    color:#F4F1E8;
+    padding:22px 20px 18px;
+    border-bottom:6px solid var(--gold);
+  }
+  .masthead-inner{max-width:1040px;margin:0 auto;}
+  .strap{
+    font-family:'Oswald',sans-serif;
+    font-size:12.5px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:#C9C2AC;
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:6px;
+    padding-bottom:12px;
+    border-bottom:1px solid rgba(255,255,255,.18);
+    margin-bottom:14px;
+  }
+  .masthead h1{
+    font-family:'Anton',sans-serif;
+    font-weight:400;
+    font-size:clamp(40px, 8vw, 76px);
+    margin:0;
+    line-height:.92;
+    letter-spacing:.01em;
+    text-transform:uppercase;
+  }
+  .masthead .sub{
+    font-family:'Oswald',sans-serif;
+    font-size:15px;
+    color:#D8CFA9;
+    margin-top:8px;
+    letter-spacing:.02em;
+  }
+
+  /* ---------- Breaking ticker ---------- */
+  .ticker{
+    background:var(--ink);
+    color:#F4F1E8;
+    font-family:'Oswald',sans-serif;
+    font-size:13.5px;
+    letter-spacing:.03em;
+    padding:9px 20px;
+    display:flex;
+    gap:10px;
+    align-items:center;
+  }
+  .ticker .tag{
+    background:var(--red);
+    color:#fff;
+    font-weight:600;
+    padding:2px 8px;
+    border-radius:2px;
+    flex:none;
+  }
+
+  /* ---------- Section headers ---------- */
+  .section-head{
+    font-family:'Oswald',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--pitch);
+    border-bottom:3px solid var(--pitch);
+    padding-bottom:6px;
+    margin:44px 0 18px;
+  }
+
+  /* ---------- Hero story ---------- */
+  .hero{
+    display:grid;
+    grid-template-columns:1.5fr 1fr;
+    gap:28px;
+    margin-top:28px;
+    padding-bottom:28px;
+    border-bottom:3px double var(--rule);
+  }
+  @media (max-width:720px){ .hero{grid-template-columns:1fr;} }
+  .kicker{
+    font-family:'Oswald',sans-serif;
+    font-weight:600;
+    font-size:12.5px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--red);
+    margin-bottom:6px;
+  }
+  .hero h2{
+    font-family:'Anton',sans-serif;
+    font-weight:400;
+    font-size:clamp(30px, 4.2vw, 46px);
+    line-height:1.02;
+    margin:0 0 14px;
+    text-transform:uppercase;
+  }
+  .hero p{font-size:18px;color:var(--ink-soft);margin:0 0 10px;}
+  .stat-block{
+    background:var(--paper-card);
+    border:1px solid var(--rule);
+    padding:22px;
+  }
+  .stat-block .big-number{
+    font-family:'Anton',sans-serif;
+    font-size:64px;
+    line-height:1;
+    color:var(--pitch);
+  }
+  .stat-block .label{
+    font-family:'Oswald',sans-serif;
+    font-size:13px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    margin-top:4px;
+  }
+  .stat-block .name{
+    font-family:'Oswald',sans-serif;
+    font-weight:600;
+    font-size:19px;
+    margin-top:14px;
+  }
+  .stat-block .team{color:var(--ink-soft);font-size:14px;}
+
+  /* ---------- Story grid ---------- */
+  .story-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:0 40px;
+  }
+  @media (max-width:720px){ .story-grid{grid-template-columns:1fr;} }
+  .story{
+    padding:22px 0;
+    border-bottom:1px solid var(--rule);
+  }
+  .story h3{
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:21px;
+    text-transform:uppercase;
+    line-height:1.15;
+    margin:0 0 8px;
+  }
+  .story p{margin:0;font-size:16.5px;color:var(--ink-soft);}
+
+  /* ---------- Power Rankings ---------- */
+  .power-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));
+    gap:14px;
+  }
+  .power-card{
+    background:var(--paper-card);
+    border:1px solid var(--rule);
+    padding:16px 18px;
+    position:relative;
+  }
+  .power-card .rank-tag{
+    font-family:'Oswald',sans-serif;
+    font-weight:600;
+    font-size:11.5px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+  }
+  .power-card .title{
+    font-family:'Anton',sans-serif;
+    font-size:24px;
+    color:var(--red);
+    line-height:1.05;
+    margin:5px 0 8px;
+    text-transform:uppercase;
+  }
+  .power-card .who{
+    font-family:'Oswald',sans-serif;
+    font-weight:600;
+    font-size:14.5px;
+    color:var(--ink);
+  }
+  .power-card .who span{color:var(--ink-soft);font-weight:400;font-size:12.5px;}
+  .power-card .blurb{font-size:14px;color:var(--ink-soft);margin-top:6px;}
+
+  /* ---------- Standings ---------- */
+  .standings{border-top:1px solid var(--rule);}
+  .standing-row{
+    display:grid;
+    grid-template-columns:34px 1fr 90px 70px;
+    align-items:center;
+    gap:14px;
+    padding:14px 0;
+    border-bottom:1px solid var(--rule);
+  }
+  .standing-row .rank{
+    font-family:'Anton',sans-serif;
+    font-size:22px;
+    color:var(--pitch);
+    text-align:center;
+  }
+  .standing-row .names{font-family:'Oswald',sans-serif;}
+  .standing-row .team-name{font-weight:600;font-size:16.5px;}
+  .standing-row .manager-name{font-size:13px;color:var(--ink-soft);}
+  .standing-row .title-badge{
+    display:inline-block;
+    font-family:'Oswald',sans-serif;
+    font-weight:600;
+    font-size:11px;
+    letter-spacing:.03em;
+    text-transform:uppercase;
+    color:var(--red);
+    background:rgba(200,41,31,.08);
+    border:1px solid rgba(200,41,31,.25);
+    padding:1px 7px;
+    margin-top:4px;
+  }
+  .standing-row .bar-track{
+    grid-column:1 / -1;
+    height:20px;
+    background:#DCD5C0;
+    border:1px solid var(--rule);
+    margin-top:2px;
+    overflow:hidden;
+  }
+  .standing-row .bar-fill{
+    height:100%;
+    background:linear-gradient(90deg, var(--pitch), #1F6B3F);
+  }
+  .move{
+    font-family:'Oswald',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    text-align:right;
+  }
+  .move.up{color:#1F6B3F;}
+  .move.down{color:var(--red);}
+  .move.same{color:var(--ink-soft);}
+  .pts{
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:19px;
+    text-align:right;
+  }
+
+  /* ---------- Stat cards strip ---------- */
+  .cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
+    gap:16px;
+  }
+  .card{
+    background:var(--paper-card);
+    border:1px solid var(--rule);
+    border-top:4px solid var(--gold);
+    padding:16px;
+  }
+  .card .emoji{font-size:26px;}
+  .card .title{
+    font-family:'Oswald',sans-serif;
+    font-weight:600;
+    font-size:12px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    margin:8px 0 4px;
+  }
+  .card .value{
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:18px;
+  }
+
+  /* ---------- Footer / subscribe ---------- */
+  .subscribe{
+    margin-top:56px;
+    background:var(--pitch);
+    color:#F4F1E8;
+    padding:30px 26px;
+    text-align:center;
+  }
+  .subscribe h3{
+    font-family:'Anton',sans-serif;
+    font-size:28px;
+    text-transform:uppercase;
+    margin:0 0 8px;
+  }
+  .subscribe p{
+    font-family:'Oswald',sans-serif;
+    color:#D8CFA9;
+    font-size:14.5px;
+    margin:0;
+  }
+  .footer-note{
+    text-align:center;
+    font-family:'Oswald',sans-serif;
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:26px;
+  }
+
+  /* ---------- Scout Report ---------- */
+  .scout-intro{font-size:16px;color:var(--ink-soft);margin-bottom:20px;}
+  .scout-columns{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:32px;
+    margin-bottom:10px;
+  }
+  @media (max-width:720px){ .scout-columns{grid-template-columns:1fr;} }
+  .scout-subhead{
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:15px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--pitch);
+    margin:0 0 12px;
+  }
+  .fixture-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:9px 0;
+    border-bottom:1px solid var(--rule);
+    font-family:'Oswald',sans-serif;
+    font-size:14.5px;
+  }
+  .fixture-row .opp{color:var(--ink-soft);font-size:12.5px;}
+  .diff-chip{
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:12px;
+    color:#fff;
+    padding:2px 9px;
+    border-radius:2px;
+    flex:none;
+  }
+  .diff-1, .diff-2{background:#1F6B3F;}
+  .diff-3{background:#8a7a1f;}
+  .diff-4, .diff-5{background:var(--red);}
+
+  .player-row{
+    display:grid;
+    grid-template-columns:1fr auto;
+    padding:10px 0;
+    border-bottom:1px solid var(--rule);
+    font-family:'Oswald',sans-serif;
+    font-size:14.5px;
+  }
+  .player-row .pname{font-weight:600;}
+  .player-row .pmeta{font-size:12px;color:var(--ink-soft);font-weight:400;}
+  .player-row .pstat{text-align:right;font-size:12.5px;color:var(--ink-soft);}
+
+  .injury-box{
+    background:#FBF1EC;
+    border:1px solid #E8C7BC;
+    border-left:4px solid var(--red);
+    padding:12px 16px;
+    margin-bottom:10px;
+    font-family:'Oswald',sans-serif;
+    font-size:14px;
+  }
+  .injury-box .who{font-weight:700;}
+  .injury-box .status{color:var(--red);font-weight:600;}
+  .injury-box .news{
+    font-family:'Source Serif 4',serif;
+    font-size:14px;
+    color:var(--ink-soft);
+    margin-top:4px;
+  }
+  .fdr-explainer{
+    background:var(--paper-card);
+    border:1px solid var(--rule);
+    border-left:4px solid var(--chalk-blue);
+    padding:14px 18px;
+    margin:16px 0 26px;
+    font-size:14.5px;
+    color:var(--ink-soft);
+  }
+  .fdr-explainer .label{
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:12px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--chalk-blue);
+    margin-bottom:5px;
+  }
+  .fdr-explainer .swatches{
+    display:flex;
+    gap:6px;
+    margin-top:8px;
+    flex-wrap:wrap;
+  }
+  .fdr-explainer .swatch{
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:11.5px;
+    color:#fff;
+    padding:2px 8px;
+    border-radius:2px;
+  }
+
+/* ---------- Landing / league-code form ---------- */
+.landing{
+  max-width:640px;
+  margin:0 auto;
+  padding:64px 20px 40px;
+  text-align:center;
+}
+.landing h1{
+  font-family:'Anton',sans-serif;
+  font-weight:400;
+  font-size:clamp(34px, 6vw, 54px);
+  text-transform:uppercase;
+  color:var(--pitch);
+  margin:0 0 10px;
+  line-height:1.02;
+}
+.landing .tagline{
+  font-family:'Oswald',sans-serif;
+  font-size:16px;
+  color:var(--ink-soft);
+  margin-bottom:32px;
+}
+#league-form{
+  display:flex;
+  gap:10px;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+#league-code{
+  font-family:'Oswald',sans-serif;
+  font-size:17px;
+  padding:13px 16px;
+  border:2px solid var(--pitch);
+  background:var(--paper-card);
+  color:var(--ink);
+  width:260px;
+  max-width:70vw;
+}
+#league-code:focus{ outline:2px solid var(--chalk-blue); outline-offset:1px; }
+#league-form button{
+  font-family:'Oswald',sans-serif;
+  font-weight:700;
+  font-size:15px;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  padding:13px 26px;
+  background:var(--red);
+  color:#fff;
+  border:none;
+  cursor:pointer;
+}
+#league-form button:hover{ background:#a91f17; }
+#league-form button:disabled{ background:#b8b0a0; cursor:wait; }
+.hint{
+  font-family:'Oswald',sans-serif;
+  font-size:12.5px;
+  color:var(--ink-soft);
+  margin-top:14px;
+}
+.hint code{
+  background:var(--paper-card);
+  border:1px solid var(--rule);
+  padding:1px 6px;
+}
+#status{
+  font-family:'Oswald',sans-serif;
+  font-size:14px;
+  color:var(--chalk-blue);
+  margin-top:20px;
+  min-height:20px;
+}
+.error-box{
+  max-width:640px;
+  margin:0 auto;
+  background:#FBF1EC;
+  border:1px solid #E8C7BC;
+  border-left:4px solid var(--red);
+  padding:18px 22px;
+  font-family:'Oswald',sans-serif;
+  font-size:15px;
+  color:var(--ink);
+}
+
+  /* ---------- Star Players ---------- */
+.star-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
+  gap:16px;
+}
+.star-card{
+  background:var(--paper-card);
+  border:1px solid var(--rule);
+  overflow:hidden;
+  text-align:center;
+}
+.star-card .photo-frame{
+  position:relative;
+  height:150px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  background-image:
+    repeating-linear-gradient(135deg, rgba(255,255,255,.07) 0 12px, transparent 12px 24px),
+    linear-gradient(135deg, var(--c1), var(--c2));
+}
+.star-card .initials-badge{
+  width:76px;
+  height:76px;
+  border-radius:50%;
+  background:rgba(0,0,0,.22);
+  border:3px solid rgba(255,255,255,.85);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:'Anton',sans-serif;
+  font-size:28px;
+  color:#fff;
+  text-shadow:0 1px 3px rgba(0,0,0,.45);
+}
+.star-card .real-photo{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:top center;
+  opacity:0;
+  transition:opacity .3s ease;
+}
+.star-card .real-photo.loaded{ opacity:1; }
+.star-card .rank-flag{
+  position:absolute;
+  top:0; left:0;
+  background:var(--gold);
+  color:var(--ink);
+  font-family:'Oswald',sans-serif;
+  font-weight:700;
+  font-size:11px;
+  letter-spacing:.04em;
+  padding:2px 8px;
+}
+.star-card .info{ padding:10px 8px 14px; }
+.star-card .pts{
+  font-family:'Anton',sans-serif;
+  font-size:26px;
+  color:var(--pitch);
+  line-height:1;
+}
+.star-card .pname{
+  font-family:'Oswald',sans-serif;
+  font-weight:600;
+  font-size:14px;
+  margin-top:4px;
+}
+.star-card .pmeta{
+  font-family:'Oswald',sans-serif;
+  font-size:11.5px;
+  color:var(--ink-soft);
+  margin-top:2px;
+}
+
+/* ---------- Share row ---------- */
+.share-row{
+  display:flex;
+  gap:10px;
+  justify-content:center;
+  margin-top:16px;
+  flex-wrap:wrap;
+}
+.share-row button{
+  font-family:'Oswald',sans-serif;
+  font-weight:600;
+  font-size:13.5px;
+  letter-spacing:.02em;
+  padding:9px 18px;
+  border:2px solid var(--pitch);
+  background:transparent;
+  color:var(--pitch);
+  cursor:pointer;
+}
+.share-row button:hover{ background:var(--pitch); color:#fff; }
+#share-whatsapp{
+  border-color:#25D366;
+  color:#1a8a45;
+}
+#share-whatsapp:hover{ background:#25D366; color:#fff; }
