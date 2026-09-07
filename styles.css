@@ -1,5 +1,4 @@
-
-  :root{
+:root{
     --pitch:#0B3D24;
     --pitch-dark:#082A19;
     --newsprint:#E9E4D6;
@@ -215,9 +214,9 @@
   .standings{border-top:1px solid var(--rule);}
   .standing-row{
     display:grid;
-    grid-template-columns:34px 1fr 90px 70px;
+    grid-template-columns:34px 1fr 74px 70px 60px;
     align-items:center;
-    gap:14px;
+    gap:12px;
     padding:14px 0;
     border-bottom:1px solid var(--rule);
   }
@@ -270,6 +269,21 @@
     font-size:19px;
     text-align:right;
   }
+  .pts-col{ text-align:right; }
+  .pts-col .num{
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:19px;
+    color:var(--ink);
+  }
+  .pts-col .label{
+    font-family:'Oswald',sans-serif;
+    font-size:9.5px;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+  }
+  .pts-col.week .num{ color:var(--pitch); }
 
   /* ---------- Stat cards strip ---------- */
   .cards{
@@ -430,89 +444,6 @@
     border-radius:2px;
   }
 
-/* ---------- Landing / league-code form ---------- */
-.landing{
-  max-width:640px;
-  margin:0 auto;
-  padding:64px 20px 40px;
-  text-align:center;
-}
-.landing h1{
-  font-family:'Anton',sans-serif;
-  font-weight:400;
-  font-size:clamp(34px, 6vw, 54px);
-  text-transform:uppercase;
-  color:var(--pitch);
-  margin:0 0 10px;
-  line-height:1.02;
-}
-.landing .tagline{
-  font-family:'Oswald',sans-serif;
-  font-size:16px;
-  color:var(--ink-soft);
-  margin-bottom:32px;
-}
-#league-form{
-  display:flex;
-  gap:10px;
-  justify-content:center;
-  flex-wrap:wrap;
-}
-#league-code{
-  font-family:'Oswald',sans-serif;
-  font-size:17px;
-  padding:13px 16px;
-  border:2px solid var(--pitch);
-  background:var(--paper-card);
-  color:var(--ink);
-  width:260px;
-  max-width:70vw;
-}
-#league-code:focus{ outline:2px solid var(--chalk-blue); outline-offset:1px; }
-#league-form button{
-  font-family:'Oswald',sans-serif;
-  font-weight:700;
-  font-size:15px;
-  letter-spacing:.04em;
-  text-transform:uppercase;
-  padding:13px 26px;
-  background:var(--red);
-  color:#fff;
-  border:none;
-  cursor:pointer;
-}
-#league-form button:hover{ background:#a91f17; }
-#league-form button:disabled{ background:#b8b0a0; cursor:wait; }
-.hint{
-  font-family:'Oswald',sans-serif;
-  font-size:12.5px;
-  color:var(--ink-soft);
-  margin-top:14px;
-}
-.hint code{
-  background:var(--paper-card);
-  border:1px solid var(--rule);
-  padding:1px 6px;
-}
-#status{
-  font-family:'Oswald',sans-serif;
-  font-size:14px;
-  color:var(--chalk-blue);
-  margin-top:20px;
-  min-height:20px;
-}
-.error-box{
-  max-width:640px;
-  margin:0 auto;
-  background:#FBF1EC;
-  border:1px solid #E8C7BC;
-  border-left:4px solid var(--red);
-  padding:18px 22px;
-  font-family:'Oswald',sans-serif;
-  font-size:15px;
-  color:var(--ink);
-}
-
   /* ---------- Star Players ---------- */
 .star-grid{
   display:grid;
@@ -617,3 +548,27 @@
   color:#1a8a45;
 }
 #share-whatsapp:hover{ background:#25D366; color:#fff; }
+
+/* ---------- Print / PDF export ---------- */
+@media print{
+  body{ background:#fff; }
+  .landing, #share-row, .footer-note{ display:none !important; }
+  *{
+    -webkit-print-color-adjust:exact !important;
+    print-color-adjust:exact !important;
+    color-adjust:exact !important;
+  }
+  .wrap{ max-width:100%; padding:0 8px 20px; }
+  .masthead{ padding:16px 16px 12px; }
+  .story, .power-card, .standing-row, .star-card, .card, .injury-box{
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+  .section-head{
+    break-after:avoid;
+    page-break-after:avoid;
+    margin-top:26px;
+  }
+  .hero{ break-inside:avoid; page-break-inside:avoid; }
+  a{ color:inherit; text-decoration:none; }
+}
