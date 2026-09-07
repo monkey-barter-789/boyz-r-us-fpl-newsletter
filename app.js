@@ -4,7 +4,6 @@
    CONFIG - fill this in after deploying cors-proxy-worker.js (see README)
    ========================================================================= */
 const PROXY_BASE = "https://fpl-proxy.deepdhandhania99.workers.dev"; // <-- change me
-
 /* =========================================================================
    Low-level fetch helpers
    ========================================================================= */
@@ -397,12 +396,29 @@ const POSITION_NAME = { 1: "GKP", 2: "DEF", 3: "MID", 4: "FWD" };
 
 async function buildNextGwPreview(snapshot) {
   const bootstrap = snapshot.bootstrap;
-  const nextEvent = bootstrap.events.find((e) => e.id === snapshot.event_id + 1);
-  if (!nextEvent) return null;
-
-  const fixtures = await getFixtures(nextEvent.id);
   const teamsById = snapshot.teamsById;
   const elementsById = snapshot.playersById;
+
+  // Normally event_id + 1 is the gameweek to preview. But if every match
+  // in that gameweek has already been played (real time can run ahead of
+  // FPL flipping its own "gameweek finished" flag, which lags behind the
+  // actual final whistle), there's nothing left to preview there - so
+  // keep looking forward until a gameweek with fixtures still to come is
+  // found, rather than showing an empty section.
+  let nextEvent = null;
+  let fixtures = [];
+  for (let offset = 1; offset <= 4; offset++) {
+    const candidate = bootstrap.events.find((e) => e.id === snapshot.event_id + offset);
+    if (!candidate) break;
+    const candidateFixtures = await getFixtures(candidate.id);
+    const stillUpcoming = candidateFixtures.some((fx) => !fx.started && !fx.finished);
+    if (stillUpcoming) {
+      nextEvent = candidate;
+      fixtures = candidateFixtures;
+      break;
+    }
+  }
+  if (!nextEvent) return null;
 
   // A gameweek can be "not finished" overall while some of its individual
   // matches have already kicked off or finished (e.g. Friday/Saturday
