@@ -3,7 +3,7 @@
 /* =========================================================================
    CONFIG - fill this in after deploying cors-proxy-worker.js (see README)
    ========================================================================= */
-const PROXY_BASE = "fpl-proxy.deepdhandhania99.workers.dev"; // <-- change me
+const PROXY_BASE = "https://fpl-proxy.deepdhandhania99.workers.dev"; // <-- change me
 
 /* =========================================================================
    Low-level fetch helpers
