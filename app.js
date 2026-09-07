@@ -3,7 +3,7 @@
 /* =========================================================================
    CONFIG - fill this in after deploying cors-proxy-worker.js (see README)
    ========================================================================= */
-const PROXY_BASE = "https://fpl-proxy.deepdhandhania99.workers.dev"; // <-- change me
+const PROXY_BASE = "fpl-proxy.deepdhandhania99.workers.dev"; // <-- change me
 
 /* =========================================================================
    Low-level fetch helpers
@@ -404,8 +404,14 @@ async function buildNextGwPreview(snapshot) {
   const teamsById = snapshot.teamsById;
   const elementsById = snapshot.playersById;
 
+  // A gameweek can be "not finished" overall while some of its individual
+  // matches have already kicked off or finished (e.g. Friday/Saturday
+  // fixtures done, Sunday/Monday still to come). Only preview matches
+  // that genuinely haven't started yet.
+  const upcomingFixtures = fixtures.filter((fx) => !fx.started && !fx.finished);
+
   const teamFixtures = {};
-  for (const fx of fixtures) {
+  for (const fx of upcomingFixtures) {
     for (const [side, oppSide, isHome] of [["team_h", "team_a", true], ["team_a", "team_h", false]]) {
       const teamId = fx[side];
       const oppId = fx[oppSide];
@@ -631,7 +637,14 @@ function renderPage(snapshot, awards, stories, standings, scout, starPlayers) {
         <div class="manager-name">${esc(m.manager_name)}</div>
         <div class="title-badge">${esc(m.title)}</div>
       </div>
-      <div class="pts">${m.event_total}</div>
+      <div class="pts-col">
+        <div class="num">${m.total_points}</div>
+        <div class="label">Total</div>
+      </div>
+      <div class="pts-col week">
+        <div class="num">${m.event_total}</div>
+        <div class="label">GW${snapshot.event_id}</div>
+      </div>
       <div class="move ${m.move_class}">${m.move_label}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${m.bar_pct}%"></div></div>
     </div>`).join("");
@@ -792,6 +805,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const shareRow = document.getElementById("share-row");
   const whatsappBtn = document.getElementById("share-whatsapp");
   const copyBtn = document.getElementById("share-copy");
+  const pdfBtn = document.getElementById("export-pdf");
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -816,6 +830,21 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (e) {
         window.prompt("Copy this link:", window.location.href);
       }
+    });
+  }
+
+  if (pdfBtn) {
+    pdfBtn.addEventListener("click", () => {
+      // The browser's own "Save as PDF" print destination gives a clean,
+      // properly-paginated PDF using the real fonts and layout - no extra
+      // library needed. print.css (in styles.css) hides the input form
+      // and share buttons and adjusts colours/page-breaks for print.
+      const original = document.title;
+      const leagueName = (document.querySelector("#result .masthead h1") || {}).textContent || "FPL Weekly";
+      const editionLine = (document.querySelector("#result .strap span:last-child") || {}).textContent || "";
+      document.title = `${leagueName.trim()} ${editionLine.trim()}`.trim();
+      window.print();
+      document.title = original;
     });
   }
 
