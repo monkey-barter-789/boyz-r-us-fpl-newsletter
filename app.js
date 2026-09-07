@@ -862,6 +862,7 @@ function renderPage(snapshot, awards, stories, standings, scout, starPlayers, to
   }
 
   return `
+  <div class="wrap">
   <div class="masthead">
     <div class="masthead-inner">
       <div class="strap">
@@ -869,11 +870,10 @@ function renderPage(snapshot, awards, stories, standings, scout, starPlayers, to
         <span>Gameweek ${snapshot.event_id} &middot; ${esc(snapshot.league_name)}</span>
       </div>
       <h1>${esc(snapshot.league_name)}</h1>
-      <div class="sub">The ${esc(snapshot.league_name)} Weekly — a mini-league tabloid, printed fresh every gameweek</div>
+      <div class="sub">The ${esc(snapshot.league_name)} Weekly — your mini-league newsletter, delivered every gameweek</div>
     </div>
   </div>
   ${tickerItems.length ? `<div class="ticker"><span class="tag">This Week</span><span>${tickerItems.join("   &bull;   ")}</span></div>` : ""}
-  <div class="wrap">
     ${heroHtml}
     <div class="section-head">This Week's Stories</div>
     <div class="story-grid">${storiesHtml}</div>
