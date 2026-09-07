@@ -92,7 +92,18 @@ async function buildLeagueSnapshot(leagueId, onProgress) {
   const managers = [];
   let done = 0;
   for (const row of results) {
-    const picksData = await getPicks(row.entry, eventId);
+    // A single manager's picks can legitimately 404 (e.g. they joined the
+    // league after this gameweek) - that shouldn't take down the whole
+    // page. Fall back to their official standings row (still correct)
+    // with an empty squad, so they show up in the table but just don't
+    // contribute to squad-level stats like captain/bench/star players.
+    let picksData;
+    try {
+      picksData = await getPicks(row.entry, eventId);
+    } catch (err) {
+      console.warn(`Skipping squad detail for entry ${row.entry} (${row.entry_name}): ${err.message}`);
+      picksData = { picks: [], automatic_subs: [] };
+    }
     const squad = [];
     for (const pick of picksData.picks || []) {
       const p = playersById[pick.element] || {};
