@@ -187,6 +187,7 @@ async function buildLeagueSnapshot(leagueId, onProgress) {
     bootstrap,
     teamsById,
     playersById,
+    livePoints,
     photo_folder: photoFolderFromBootstrap(bootstrap),
   };
 }
@@ -585,12 +586,13 @@ function buildStarPlayers(snapshot, topN = 6) {
     for (const line of m.squad) {
       if (line.multiplier <= 0) continue;
       const existing = bestById[line.id];
-      if (!existing || line.final_points > existing.final_points) bestById[line.id] = line;
+      if (!existing || line.final_points > existing[0].final_points) bestById[line.id] = [line, m];
     }
   }
-  const ranked = Object.values(bestById).sort((a, b) => b.final_points - a.final_points).slice(0, topN);
+  const ranked = Object.values(bestById).sort((a, b) => b[0].final_points - a[0].final_points).slice(0, topN);
   const photoFolder = snapshot.photo_folder || "premierleague";
-  return ranked.map((line) => {
+  const multiplierLabels = { 2: "Captained (\u00d72)", 3: "Triple Captain (\u00d73)" };
+  return ranked.map(([line, manager]) => {
     const [c1, c2] = teamColors(line.team);
     const [photoUrl, photoFallback] = playerPhotoUrls(line.code, photoFolder);
     return {
@@ -598,10 +600,66 @@ function buildStarPlayers(snapshot, topN = 6) {
       initials: line.initials || "?",
       team: line.team,
       points: line.final_points,
+      raw_points: line.raw_points,
+      multiplier: line.multiplier,
+      multiplier_label: multiplierLabels[line.multiplier] || "Started (\u00d71)",
+      manager_name: manager.manager_name,
+      fantasy_team_name: manager.team_name,
       photo_url: photoUrl,
       photo_url_fallback: photoFallback,
       owned_by: ownedBy[line.id] || 1,
       league_size: snapshot.managers.length,
+      color1: c1,
+      color2: c2,
+    };
+  });
+}
+
+/* =========================================================================
+   Highest raw scorers league-wide, independent of your league's ownership
+   ========================================================================= */
+function buildTopScorers(snapshot, topN = 6) {
+  const playersById = snapshot.playersById;
+  const teamsById = snapshot.teamsById;
+  const livePoints = snapshot.livePoints || {};
+  const photoFolder = snapshot.photo_folder || "premierleague";
+
+  const ownedBy = {};
+  for (const m of snapshot.managers) {
+    const seen = new Set();
+    for (const line of m.squad) {
+      if (!seen.has(line.id)) {
+        seen.add(line.id);
+        ownedBy[line.id] = (ownedBy[line.id] || 0) + 1;
+      }
+    }
+  }
+
+  const scored = [];
+  for (const [pidStr, stats] of Object.entries(livePoints)) {
+    const pid = Number(pidStr);
+    const pts = stats.total_points || 0;
+    if (pts <= 0 || (stats.minutes || 0) <= 0) continue;
+    const p = playersById[pid];
+    if (!p) continue;
+    scored.push({ pid, p, pts });
+  }
+  scored.sort((a, b) => b.pts - a.pts);
+  const top = scored.slice(0, topN);
+
+  return top.map(({ pid, p, pts }) => {
+    const teamShort = (teamsById[p.team] || {}).short_name || "";
+    const [c1, c2] = teamColors(teamShort);
+    const [photoUrl, photoFallback] = playerPhotoUrls(p.code, photoFolder);
+    return {
+      name: p.web_name || "Unknown",
+      initials: playerInitials(p),
+      team: teamShort,
+      points: pts,
+      owned_by: ownedBy[pid] || 0,
+      league_size: snapshot.managers.length,
+      photo_url: photoUrl,
+      photo_url_fallback: photoFallback,
       color1: c1,
       color2: c2,
     };
@@ -628,7 +686,7 @@ function esc(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-function renderPage(snapshot, awards, stories, standings, scout, starPlayers) {
+function renderPage(snapshot, awards, stories, standings, scout, starPlayers, topScorers) {
   const hero = stories[0];
   const rest = stories.slice(1);
   const generatedDate = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
@@ -664,6 +722,22 @@ function renderPage(snapshot, awards, stories, standings, scout, starPlayers) {
   const starPlayersHtml = (starPlayers || []).map((p, i) => `
     <div class="star-card">
       <div class="photo-frame" style="--c1:${p.color1};--c2:${p.color2};">
+        ${i === 0 ? '<div class="rank-flag">BEST RETURN</div>' : ""}
+        <div class="initials-badge">${esc(p.initials)}</div>
+        ${p.photo_url ? `<img class="real-photo" src="${p.photo_url}" alt="" data-fallback="${p.photo_url_fallback || ""}" onload="this.classList.add('loaded');" onerror="if(this.dataset.fallback &amp;&amp; this.src !== this.dataset.fallback){ this.src = this.dataset.fallback; this.dataset.fallback = ''; } else { this.remove(); }">` : ""}
+      </div>
+      <div class="info">
+        <div class="pts">${p.points}</div>
+        <div class="pmult">${esc(p.multiplier_label)} &middot; ${p.raw_points} raw</div>
+        <div class="pname">${esc(p.name)}</div>
+        <div class="pmeta">${esc(p.team)} &middot; owned by ${p.owned_by}/${p.league_size}</div>
+        <div class="pmanager">for ${esc(p.manager_name)} (${esc(p.fantasy_team_name)})</div>
+      </div>
+    </div>`).join("");
+
+  const topScorersHtml = (topScorers || []).map((p, i) => `
+    <div class="star-card">
+      <div class="photo-frame" style="--c1:${p.color1};--c2:${p.color2};">
         ${i === 0 ? '<div class="rank-flag">TOP SCORER</div>' : ""}
         <div class="initials-badge">${esc(p.initials)}</div>
         ${p.photo_url ? `<img class="real-photo" src="${p.photo_url}" alt="" data-fallback="${p.photo_url_fallback || ""}" onload="this.classList.add('loaded');" onerror="if(this.dataset.fallback &amp;&amp; this.src !== this.dataset.fallback){ this.src = this.dataset.fallback; this.dataset.fallback = ''; } else { this.remove(); }">` : ""}
@@ -671,7 +745,7 @@ function renderPage(snapshot, awards, stories, standings, scout, starPlayers) {
       <div class="info">
         <div class="pts">${p.points}</div>
         <div class="pname">${esc(p.name)}</div>
-        <div class="pmeta">${esc(p.team)} &middot; owned by ${p.owned_by}/${p.league_size}</div>
+        <div class="pmeta">${esc(p.team)} ${p.owned_by === 0 ? "&middot; owned by no one in your league" : `&middot; owned by ${p.owned_by}/${p.league_size}`}</div>
       </div>
     </div>`).join("");
 
@@ -803,7 +877,8 @@ function renderPage(snapshot, awards, stories, standings, scout, starPlayers) {
     ${heroHtml}
     <div class="section-head">This Week's Stories</div>
     <div class="story-grid">${storiesHtml}</div>
-    ${starPlayers && starPlayers.length ? `<div class="section-head">Star Players This Week</div><div class="star-grid">${starPlayersHtml}</div>` : ""}
+    ${starPlayers && starPlayers.length ? `<div class="section-head">Biggest Returns This Week</div><p class="scout-intro">The best result any manager in your league actually got from a player this gameweek — including their captain call. This is about who benefited, not who played best.</p><div class="star-grid">${starPlayersHtml}</div>` : ""}
+    ${topScorers && topScorers.length ? `<div class="section-head">Highest Scoring Players This Week</div><p class="scout-intro">The best individual performances across the whole gameweek, full stop — whether or not anyone in your league happens to own them.</p><div class="star-grid">${topScorersHtml}</div>` : ""}
     <div class="section-head">This Week's Power Rankings</div>
     <div class="power-grid">${powerHtml}</div>
     <div class="section-head">League Table — Gameweek ${snapshot.event_id}</div>
@@ -836,11 +911,12 @@ async function generateForLeague(leagueId) {
     const titles = assignTitles(snapshot.managers, awards);
     const standings = buildStandingsView(snapshot.managers, titles);
     const starPlayers = buildStarPlayers(snapshot);
+    const topScorers = buildTopScorers(snapshot);
     statusEl.textContent = "Pulling next gameweek's fixtures…";
     const scout = await buildNextGwPreview(snapshot).catch(() => null);
 
     statusEl.textContent = "";
-    resultEl.innerHTML = renderPage(snapshot, awards, stories, standings, scout, starPlayers);
+    resultEl.innerHTML = renderPage(snapshot, awards, stories, standings, scout, starPlayers, topScorers);
     resultEl.scrollIntoView({ behavior: "smooth", block: "start" });
     const shareRow = document.getElementById("share-row");
     if (shareRow) shareRow.style.display = "flex";
