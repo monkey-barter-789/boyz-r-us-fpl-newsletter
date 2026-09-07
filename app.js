@@ -30,6 +30,13 @@ async function getStandings(leagueId) {
 }
 
 async function getCurrentEvent(bootstrap) {
+  // A match that's over long enough ago must be finished, even if FPL's
+  // own "finished" flag hasn't caught up yet. 2.5 hours from kickoff
+  // comfortably covers 90 minutes, stoppage time, and extra time -
+  // while still correctly treating a match in progress right now as
+  // NOT over (this is a time check, not just "has it started").
+  const MATCH_DURATION_BUFFER_MS = 2.5 * 60 * 60 * 1000;
+
   const finished = bootstrap.events.filter((e) => e.finished);
   let current;
   if (finished.length === 0) {
@@ -38,15 +45,17 @@ async function getCurrentEvent(bootstrap) {
     current = finished[finished.length - 1];
   }
 
-  // FPL's own "finished" flag can lag behind reality by hours after the
-  // actual final whistle while bonus points get locked in - so once
-  // every fixture in the *next* gameweek has been played, treat that as
-  // reportable too rather than waiting on FPL's flag to catch up.
+  const now = Date.now();
   for (let i = 0; i < 3; i++) {
     const candidate = bootstrap.events.find((e) => e.id === current.id + 1);
     if (!candidate) break;
     const fixtures = await getFixtures(candidate.id);
-    if (fixtures.length && fixtures.every((fx) => fx.finished)) {
+    if (!fixtures.length) break;
+    const surelyOver = (fx) => {
+      if (!fx.kickoff_time) return false;
+      return now >= new Date(fx.kickoff_time).getTime() + MATCH_DURATION_BUFFER_MS;
+    };
+    if (fixtures.every(surelyOver)) {
       current = candidate;
       continue;
     }
