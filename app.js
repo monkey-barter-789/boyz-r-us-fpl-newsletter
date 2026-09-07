@@ -29,12 +29,30 @@ async function getStandings(leagueId) {
   return { league, results };
 }
 
-function getCurrentEvent(bootstrap) {
+async function getCurrentEvent(bootstrap) {
   const finished = bootstrap.events.filter((e) => e.finished);
+  let current;
   if (finished.length === 0) {
-    return bootstrap.events.find((e) => e.is_current) || bootstrap.events[0];
+    current = bootstrap.events.find((e) => e.is_current) || bootstrap.events[0];
+  } else {
+    current = finished[finished.length - 1];
   }
-  return finished[finished.length - 1];
+
+  // FPL's own "finished" flag can lag behind reality by hours after the
+  // actual final whistle while bonus points get locked in - so once
+  // every fixture in the *next* gameweek has been played, treat that as
+  // reportable too rather than waiting on FPL's flag to catch up.
+  for (let i = 0; i < 3; i++) {
+    const candidate = bootstrap.events.find((e) => e.id === current.id + 1);
+    if (!candidate) break;
+    const fixtures = await getFixtures(candidate.id);
+    if (fixtures.length && fixtures.every((fx) => fx.finished)) {
+      current = candidate;
+      continue;
+    }
+    break;
+  }
+  return current;
 }
 
 function applyAutosubsAndViceCaptaincy(squad, automaticSubs) {
@@ -71,7 +89,7 @@ function applyAutosubsAndViceCaptaincy(squad, automaticSubs) {
    ========================================================================= */
 async function buildLeagueSnapshot(leagueId, onProgress) {
   const bootstrap = await getBootstrap();
-  const event = getCurrentEvent(bootstrap);
+  const event = await getCurrentEvent(bootstrap);
   const eventId = event.id;
 
   const { league, results } = await getStandings(leagueId);
@@ -469,10 +487,21 @@ async function buildNextGwPreview(snapshot) {
   const transfersOut = [...bootstrap.elements].filter((p) => p.status !== "a" || parseFloat(p.form || 0) < 2).sort((a, b) => (b.transfers_out_event || 0) - (a.transfers_out_event || 0)).slice(0, 6)
     .map((p) => ({ name: p.web_name, team: (teamsById[p.team] || {}).short_name || "", position: POSITION_NAME[p.element_type] || "", status: STATUS_TEXT[p.status] || p.status, news: p.news || "" }));
 
+  // Injury Watch should reflect what's actionable right now, not who
+  // was owned back when the reporting gameweek (possibly a week or more
+  // behind) was last confirmed. Fetch each manager's CURRENT picks -
+  // for the gameweek actually being previewed - purely for this section.
   const injuryWatch = [];
   const seen = new Set();
   for (const m of snapshot.managers) {
-    const ownedIds = new Set(m.squad.map((l) => l.id));
+    let currentPicks;
+    try {
+      currentPicks = await getPicks(m.entry_id, nextEvent.id);
+    } catch (err) {
+      console.warn(`Skipping injury watch for entry ${m.entry_id} (${m.team_name}): ${err.message}`);
+      continue;
+    }
+    const ownedIds = new Set((currentPicks.picks || []).map((p) => p.element));
     for (const pid of ownedIds) {
       const p = elementsById[pid];
       if (!p) continue;
@@ -746,7 +775,7 @@ function renderPage(snapshot, awards, stories, standings, scout, starPlayers) {
         ${scout.transfers_out.map((p) => playerRow(p, esc(p.status))).join("")}
       </div>
     </div>
-    ${scout.injury_watch.length ? `<div class="scout-subhead" style="margin-top:30px;">Injury Watch — Your League's Squads</div>${injuryHtml}` : ""}`;
+    ${scout.injury_watch.length ? `<div class="scout-subhead" style="margin-top:30px;">Injury Watch — Your League's Gameweek ${scout.event_id} Squads</div><p style="font-size:13.5px;color:var(--ink-soft);margin:-6px 0 12px;">Reflects each manager's current squad ahead of Gameweek ${scout.event_id}.</p>${injuryHtml}` : ""}`;
   }
 
   return `
