@@ -303,20 +303,25 @@ function buildAwards(snapshot) {
    - A story that cannot be written this week is swapped for a spare type
      that is not scheduled nearby.
    - No manager can headline more than PER_MANAGER_CAP stories in one
-     edition, and persistent-trait stories (like Template Watch) pick from a
-     group of close candidates instead of always the same name.
+     edition, and stories about a lasting trait pick from a group of close
+     candidates instead of always the same name.
    - Every story has several wordings. Choices are seeded by league and
      gameweek, so one week's edition never changes between reloads, but it
      reads differently from the week before.
    ========================================================================= */
 const STORY_ANCHORS = ["motm", "rank_movement", "flop"];
 const STORY_ROTATING = [
-  "captain_clash", "template_watch", "bench_blunder", "differential",
+  "captain_clash", "bench_blunder", "differential",
   "title_race", "photo_finish", "spread", "above_average",
   "template_flop", "unowned_star", "captain_consensus", "dud_count",
   "position_spotlight", "chip_watch", "transfer_hit", "squad_value",
+  "goalkeeper_gloves", "back_four", "striker_drought", "vice_regret",
+  "double_digits", "blank_brigade", "ghost_starters", "lone_captain",
+  "catch_up", "group_average", "century_club", "one_man_band",
+  "team_effort", "swapped_places", "tightest_gap", "no_mans_land",
+  "position_split", "bench_bill", "landslide", "differential_disaster",
 ];
-const STORY_WINDOW = 4;
+const STORY_WINDOW = 5;
 const STORY_WEEKS_PER_CYCLE = STORY_ROTATING.length / STORY_WINDOW;
 const PER_MANAGER_CAP = 2;
 
@@ -344,6 +349,7 @@ function mulberry32(a) {
 function makeRng(seedStr) {
   const next = mulberry32(xmur3(seedStr)());
   return {
+    next,
     pick: (arr) => arr[Math.floor(next() * arr.length)],
     shuffle: (arr) => {
       for (let i = arr.length - 1; i > 0; i--) {
@@ -472,32 +478,6 @@ function captainClash(a, rng) {
     `ARMBAND GENIUS: ${best.manager_name.toUpperCase()}`,
   ]);
   return mkStory("CAPTAINCY WATCH", headline, body, [best, worst], best);
-}
-
-function templateWatch(a, rng) {
-  const scores = a.sheep_scores;
-  const ms = a.managers.filter((m) => m.entry_id in scores);
-  if (ms.length < 2) return null;
-  const vals = ms.map((m) => scores[m.entry_id]);
-  const top = Math.max(...vals), low = Math.min(...vals);
-  if (top === low) return null;
-  // pick from the close contenders so it is not always the same name
-  const sheep = rng.pick(ms.filter((m) => scores[m.entry_id] >= top - 10));
-  const mavPool = ms.filter((m) => scores[m.entry_id] <= low + 10 && m !== sheep);
-  if (!mavPool.length) return null;
-  const mav = rng.pick(mavPool);
-  const s = scores[sheep.entry_id], v = scores[mav.entry_id];
-  const body = rng.pick([
-    `${s}% of ${sheep.manager_name}'s starting XI is straight off the template, among the most copy-paste line-ups in the league. At the other end, ${mav.manager_name} went it alone with a line-up only ${v}% template. Braver, or just wrong?`,
-    `The crowd picked its team and ${sheep.manager_name} followed it, ${s}% template. ${mav.manager_name} marched the other way at ${v}%. We will see who looks clever by the end of the month.`,
-    `Template check: ${sheep.manager_name} sits at ${s}%, ${mav.manager_name} at ${v}%. One of them is playing it safe and the other is playing with fire.`,
-  ]);
-  const headline = rng.pick([
-    `${sheep.manager_name.toUpperCase()} FOLLOWS THE FLOCK`,
-    `${mav.manager_name.toUpperCase()} GOES ROGUE`,
-    `TEMPLATE TALK: ${sheep.manager_name.toUpperCase()} VS ${mav.manager_name.toUpperCase()}`,
-  ]);
-  return mkStory("TEMPLATE WATCH", headline, body, [sheep, mav], sheep);
 }
 
 function benchBlunder(a, rng) {
@@ -790,15 +770,350 @@ function squadValue(a, rng) {
   return mkStory("MONEY TALK", rng.pick([`${rich.manager_name.toUpperCase()} HAS THE DEEPEST POCKETS`, "THE RICH LIST"]), body, [rich], rich);
 }
 
+/* ---------- twenty more rotating stories ---------- */
+const startersOf = (m) => (m.squad || []).filter((l) => l.multiplier > 0);
+const withSquad = (a) => a.managers.filter((m) => (m.squad || []).length > 0);
+const posTotal = (m, type) => startersOf(m).filter((l) => l.element_type === type).reduce((s, l) => s + l.final_points, 0);
+/* the item with the highest (dir = 1) or lowest (dir = -1) value, ties broken
+   at random so list order never favours anyone */
+function topBy(arr, f, rng, dir = 1) {
+  let best = null, pool = [];
+  for (const x of arr) {
+    const v = dir * f(x);
+    if (best === null || v > best) { best = v; pool = [x]; } else if (v === best) pool.push(x);
+  }
+  return pool.length ? rng.pick(pool) : null;
+}
+const UP = (s) => String(s).toUpperCase();
+
+function goalkeeperGloves(a, rng) {
+  const rows = withSquad(a).map((m) => ({ m, k: startersOf(m).find((l) => l.element_type === 1) })).filter((x) => x.k);
+  if (rows.length < 2) return null;
+  const top = topBy(rows, (x) => x.k.final_points, rng);
+  if (top.k.final_points < 6) return null;
+  const low = topBy(rows, (x) => x.k.final_points, rng, -1);
+  const tail = low.m !== top.m && low.k.final_points < top.k.final_points
+    ? ` At the other end, ${low.m.manager_name}'s ${low.k.name} managed ${ptsWord(low.k.final_points)}.` : "";
+  const body = rng.pick([
+    `${top.m.manager_name} had the safest hands in the league. ${top.k.name} (${top.k.team}) went home with ${top.k.final_points} points between the sticks.`,
+    `Goalkeepers rarely make the headlines, but ${top.k.name} did for ${top.m.manager_name} with ${top.k.final_points} points.`,
+    `Best gloves of the week go to ${top.m.manager_name}, whose keeper ${top.k.name} returned ${top.k.final_points}.`,
+  ]) + tail;
+  return mkStory("GOLDEN GLOVES", rng.pick(["SAFE HANDS", `${UP(top.k.name)} STEALS THE SHOW`, "THE KEEPER'S UNION"]), body, [top.m], top.m);
+}
+
+function backFour(a, rng) {
+  const rows = withSquad(a).filter((m) => startersOf(m).filter((l) => l.element_type === 2).length >= 3)
+    .map((m) => ({ m, v: posTotal(m, 2) }));
+  if (rows.length < 2) return null;
+  const top = topBy(rows, (x) => x.v, rng);
+  if (top.v < 12) return null;
+  const low = topBy(rows, (x) => x.v, rng, -1);
+  const tail = low.m !== top.m && low.v < top.v ? ` ${low.m.manager_name}'s defence gave back just ${low.v}.` : "";
+  const body = rng.pick([
+    `${top.m.manager_name}'s back line was the best in the league, picking up ${top.v} points between them.`,
+    `Clean sheets and the odd goal: ${top.m.manager_name}'s defenders combined for ${top.v} points this week.`,
+    `The wall held for ${top.m.manager_name}. Their defenders collected ${top.v} points, more than anyone else here.`,
+  ]) + tail;
+  return mkStory("BACK LINE", rng.pick(["THE WALL", "DEFENCE WINS TITLES", "SOLID AT THE BACK"]), body, [top.m], top.m);
+}
+
+function strikerDrought(a, rng) {
+  const rows = withSquad(a).map((m) => ({ m, n: startersOf(m).filter((l) => l.element_type === 4).length, v: posTotal(m, 4) })).filter((x) => x.n >= 2);
+  if (!rows.length) return null;
+  const low = topBy(rows, (x) => x.v, rng, -1);
+  if (low.v > 4) return null;
+  const body = rng.pick([
+    `${low.m.manager_name} started ${low.n} forwards and got ${ptsWord(low.v)} out of them. Somebody check the strikers are still alive.`,
+    `The front line let ${low.m.manager_name} down badly. ${low.n} forwards, ${ptsWord(low.v)} between them.`,
+    `Goals dried up for ${low.m.manager_name}. ${low.n} strikers started and they managed ${ptsWord(low.v)} combined.`,
+  ]);
+  return mkStory("STRIKER DROUGHT", rng.pick(["NO GOALS, NO GLORY", "THE FRONT LINE FIRED BLANKS", "WHERE ARE THE STRIKERS?"]), body, [low.m], low.m);
+}
+
+function viceRegret(a, rng) {
+  const rows = [];
+  for (const m of withSquad(a)) {
+    const cap = m.squad.find((l) => l.is_captain);
+    const vice = m.squad.find((l) => l.is_vice_captain);
+    if (!cap || !vice || cap.id === vice.id) continue;
+    const lost = (vice.raw_points - cap.raw_points) * Math.max(cap.multiplier, 2);
+    if (vice.raw_points - cap.raw_points >= 5) rows.push({ m, cap, vice, lost });
+  }
+  if (!rows.length) return null;
+  const x = topBy(rows, (r) => r.lost, rng);
+  const body = rng.pick([
+    `${x.m.manager_name} gave the armband to ${x.cap.name} (${x.cap.raw_points}) while the vice-captain ${x.vice.name} scored ${x.vice.raw_points}. Swapping them would have been worth ${x.lost} points.`,
+    `The vice-captain outscored the captain at ${x.m.team_name}. ${x.vice.name} hit ${x.vice.raw_points} while ${x.cap.name} managed ${x.cap.raw_points}. That is ${x.lost} points left behind.`,
+    `Wrong way round: ${x.m.manager_name}'s vice ${x.vice.name} (${x.vice.raw_points}) beat the captain ${x.cap.name} (${x.cap.raw_points}). The swap would have added ${x.lost}.`,
+  ]);
+  return mkStory("ARMBAND REGRET", rng.pick(["THE VICE WAS NICE", "WRONG WAY ROUND", "SECOND CHOICE WON"]), body, [x.m], x.m);
+}
+
+function doubleDigits(a, rng) {
+  const rows = withSquad(a).map((m) => ({ m, k: startersOf(m).filter((l) => l.raw_points >= 10).length }));
+  if (!rows.length) return null;
+  const top = topBy(rows, (x) => x.k, rng);
+  if (top.k < 3) return null;
+  const names = startersOf(top.m).filter((l) => l.raw_points >= 10).map((l) => l.name).slice(0, 4).join(", ");
+  const body = rng.pick([
+    `${top.m.manager_name} had ${top.k} players in double figures this week (${names}). Nobody else in the league came close.`,
+    `Double digits everywhere at ${top.m.team_name}: ${names}. ${top.k} players hit 10 or more.`,
+    `${top.k} hauls of 10 plus for ${top.m.manager_name}, courtesy of ${names}.`,
+  ]);
+  return mkStory("DOUBLE FIGURES", rng.pick(["HAUL MONSTERS", "THE DOUBLE DIGIT CLUB", "TEN AND OVER"]), body, [top.m], top.m);
+}
+
+function blankBrigade(a, rng) {
+  const rows = withSquad(a).map((m) => ({ m, k: startersOf(m).filter((l) => l.minutes >= 60 && l.raw_points <= 2).length }));
+  if (!rows.length) return null;
+  const top = topBy(rows, (x) => x.k, rng);
+  if (top.k < 6) return null;
+  const body = rng.pick([
+    `${top.k} of ${top.m.manager_name}'s starters played over an hour and still scored 2 points or fewer. A proper blank brigade.`,
+    `${top.m.team_name} had ${top.k} players on the pitch for 60 minutes or more who barely troubled the scorers.`,
+    `Lots of minutes, very little to show: ${top.k} of ${top.m.manager_name}'s starters finished on 2 points or fewer.`,
+  ]);
+  return mkStory("BLANK BRIGADE", rng.pick(["PRESENT BUT NOT COUNTED", "THE QUIET ONES", "ALL MINUTES, NO RETURNS"]), body, [top.m], top.m);
+}
+
+function ghostStarters(a, rng) {
+  const rows = withSquad(a).map((m) => ({ m, g: startersOf(m).filter((l) => l.minutes === 0) }));
+  const top = topBy(rows, (x) => x.g.length, rng);
+  if (!top || top.g.length < 2) return null;
+  const names = top.g.map((l) => l.name).slice(0, 3).join(", ");
+  const body = rng.pick([
+    `${top.m.manager_name} sent out ${top.g.length} players who never kicked a ball (${names}), with no substitutes to cover. That is a lot of dead weight.`,
+    `${names} all started for ${top.m.team_name} and all played zero minutes. ${top.g.length} empty shirts in the XI.`,
+    `Ghosts in the line-up: ${top.g.length} of ${top.m.manager_name}'s starters did not play at all this week.`,
+  ]);
+  return mkStory("GHOSTS IN THE XI", rng.pick(["THE NO-SHOWS", "PLAYERS WHO WERE NEVER THERE", "EMPTY SHIRTS"]), body, [top.m], top.m);
+}
+
+function loneCaptain(a, rng) {
+  const rows = withSquad(a).map((m) => ({ m, cap: m.squad.find((l) => l.is_captain) })).filter((x) => x.cap);
+  if (rows.length < 4) return null;
+  const count = {};
+  for (const x of rows) count[x.cap.id] = (count[x.cap.id] || 0) + 1;
+  const lone = rows.filter((x) => count[x.cap.id] === 1);
+  if (!lone.length || lone.length === rows.length) return null;
+  const x = rng.pick(lone);
+  const avg = Math.round(rows.reduce((s, r) => s + r.cap.final_points, 0) / rows.length);
+  const good = x.cap.final_points >= avg;
+  const body = good
+    ? rng.pick([
+        `${x.m.manager_name} was the only manager to captain ${x.cap.name}, and it paid off with ${x.cap.final_points} points. The league average captain scored ${avg}.`,
+        `Going it alone worked for ${x.m.manager_name}. ${x.cap.name} had the armband at nobody else's team and returned ${x.cap.final_points}.`,
+      ])
+    : rng.pick([
+        `${x.m.manager_name} was the only manager to captain ${x.cap.name}, and it did not pay off. ${x.cap.final_points} points, against an average captain score of ${avg}.`,
+        `A lonely armband for ${x.m.manager_name}. Nobody else backed ${x.cap.name} as captain, and the return was ${x.cap.final_points}.`,
+      ]);
+  return mkStory("ARMBAND ALONE", rng.pick(good ? ["BOLD CALL, BIG RETURN", "THE LONE CAPTAIN"] : ["NOBODY ELSE BACKED HIM", "A LONELY ARMBAND"]), body, [x.m], x.m);
+}
+
+function catchUp(a, rng) {
+  const ms = [...a.managers].sort((x, y) => x.rank - y.rank);
+  if (ms.length < 3) return null;
+  const lead = ms[0], last = ms[ms.length - 1];
+  const gap = lead.total_points - last.total_points;
+  if (gap <= 0) return null;
+  const per = a.league_average || a.managers.reduce((s, m) => s + m.event_total, 0) / a.managers.length;
+  if (!per) return null;
+  const weeks = (gap / per).toFixed(1);
+  const body = rng.pick([
+    `${last.manager_name} is ${gap} points behind leader ${lead.manager_name}. That is roughly ${weeks} gameweeks of an average score, so there is hope yet.`,
+    `The distance from top to bottom is ${gap} points. For ${last.manager_name} to close it, that is ${weeks} average gameweeks of making up ground.`,
+    `${lead.manager_name} leads, ${last.manager_name} trails by ${gap}. In average-gameweek terms, ${weeks} weeks of catching up.`,
+  ]);
+  return mkStory("LONG WAY UP", rng.pick(["HOW FAR IS THE CLIMB?", "TOP TO BOTTOM", "THE GAP IN GAMEWEEKS"]), body, [lead, last], last);
+}
+
+function groupAverage(a, rng) {
+  const g = a.league_average;
+  const ms = a.managers;
+  if (!g || ms.length < 3) return null;
+  const mean = ms.reduce((s, m) => s + m.event_total, 0) / ms.length;
+  const d = Math.round(mean - g);
+  if (d === 0) return null;
+  const m1 = mean.toFixed(1);
+  const body = d > 0
+    ? rng.pick([
+        `This league averaged ${m1} points a team, ${d} better than the global average of ${g}. The group chat has talent.`,
+        `As a group you scored ${m1} each, ${d} above the world average of ${g}. Not a bad bunch.`,
+      ])
+    : rng.pick([
+        `This league averaged ${m1} points a team, ${-d} below the global average of ${g}. The rest of the world had a better week.`,
+        `As a group you managed ${m1} each against the world average of ${g}. A ${-d}-point shortfall to share around.`,
+      ]);
+  return mkStory("GROUP CHAT STATS", d > 0 ? rng.pick(["BETTER THAN THE WORLD", "ABOVE THE CROWD"]) : rng.pick(["BELOW THE WORLD AVERAGE", "THE WORLD WON THIS ONE"]), body, []);
+}
+
+function centuryClub(a, rng) {
+  const bar = a.league_average ? Math.round(a.league_average + 25) : 75;
+  const hi = [...a.managers].filter((m) => m.event_total >= bar).sort((x, y) => y.event_total - x.event_total);
+  if (hi.length < 2) return null;
+  const list = hi.slice(0, 3).map((m) => `${m.manager_name} (${m.event_total})`).join(", ");
+  const body = rng.pick([
+    `${hi.length} managers cleared ${bar} points this week: ${list}. Elite company.`,
+    `The big scorers' club had ${hi.length} members this week: ${list}.`,
+  ]);
+  return mkStory("THE BIG SCORERS", rng.pick([`${hi.length} OVER ${bar}`, "THE HIGH SCORERS' TABLE"]), body, hi.slice(0, 3), hi[0]);
+}
+
+function oneManBand(a, rng) {
+  const rows = withSquad(a).map((m) => ({ m, cap: m.squad.find((l) => l.is_captain) })).filter((x) => x.cap && x.m.event_total > 0)
+    .map((x) => ({ ...x, share: x.cap.final_points / x.m.event_total }));
+  if (!rows.length) return null;
+  const x = topBy(rows, (r) => r.share, rng);
+  if (x.share < 0.35 || x.cap.final_points < 16) return null;
+  const pct = Math.round(100 * x.share);
+  const body = rng.pick([
+    `${pct}% of ${x.m.manager_name}'s score came from one man. ${x.cap.name} on the armband delivered ${x.cap.final_points} of ${x.m.event_total} points.`,
+    `${x.cap.name} carried ${x.m.team_name} this week, contributing ${x.cap.final_points} of the ${x.m.event_total} points as captain.`,
+    `It was ${x.cap.name}'s show at ${x.m.team_name}. ${x.cap.final_points} of ${x.m.manager_name}'s ${x.m.event_total} points came off the armband.`,
+  ]);
+  return mkStory("ONE-MAN BAND", rng.pick(["CARRIED BY THE CAPTAIN", `ALL HAIL ${UP(x.cap.name)}`, "THE ARMBAND DID IT ALL"]), body, [x.m], x.m);
+}
+
+function teamEffort(a, rng) {
+  const rows = withSquad(a).map((m) => ({ m, k: startersOf(m).filter((l) => l.raw_points >= 5).length }));
+  if (!rows.length) return null;
+  const top = topBy(rows, (x) => x.k, rng);
+  if (top.k < 6) return null;
+  const body = rng.pick([
+    `${top.k} of ${top.m.manager_name}'s starters scored 5 or more. A proper team effort with no passengers.`,
+    `No weak links at ${top.m.team_name}: ${top.k} players got to 5 points or better.`,
+    `${top.m.manager_name} got returns from all over the pitch. ${top.k} starters reached at least 5 points.`,
+  ]);
+  return mkStory("TEAM EFFORT", rng.pick(["NO PASSENGERS", "ALL HANDS ON DECK", "A SQUAD WITHOUT WEAK LINKS"]), body, [top.m], top.m);
+}
+
+function swappedPlaces(a, rng) {
+  const ms = a.managers.filter((m) => m.last_rank);
+  const pairs = [];
+  for (const x of ms) for (const y of ms) {
+    if (x.entry_id !== y.entry_id && x.last_rank > y.last_rank && x.rank < y.rank) pairs.push({ up: x, down: y, d: Math.abs(x.rank - y.rank) });
+  }
+  if (!pairs.length) return null;
+  const close = pairs.filter((p) => p.d === 1);
+  const p = rng.pick(close.length ? close : pairs);
+  const body = rng.pick([
+    `${p.up.manager_name} was behind ${p.down.manager_name} last week and is now ahead of them. The table has a new pecking order.`,
+    `Places swapped this week: ${p.up.manager_name} moves above ${p.down.manager_name}, who held the edge before.`,
+    `${p.down.manager_name} has been overtaken by ${p.up.manager_name}. Last week it was the other way round.`,
+  ]);
+  return mkStory("CHANGING PLACES", rng.pick(["THE OVERTAKE", "SWAPPING SPOTS", "NEW PECKING ORDER"]), body, [p.up, p.down], p.up);
+}
+
+function tightestGap(a, rng) {
+  const ms = [...a.managers].sort((x, y) => x.rank - y.rank);
+  if (ms.length < 4) return null;
+  let best = null;
+  for (let i = 1; i < ms.length - 1; i++) {
+    const g = ms[i].total_points - ms[i + 1].total_points;
+    if (!best || g < best.g) best = { hi: ms[i], lo: ms[i + 1], g };
+  }
+  if (!best || best.g > 3) return null;
+  const body = best.g === 0
+    ? `${best.hi.manager_name} and ${best.lo.manager_name} are level on ${best.hi.total_points} points, split only by tiebreakers.`
+    : rng.pick([
+        `${best.hi.manager_name} (${best.hi.rank}${ordinalSuffix(best.hi.rank)}) leads ${best.lo.manager_name} by only ${ptsWord(best.g)}. One decent week changes that.`,
+        `Only ${ptsWord(best.g)} separate ${best.hi.manager_name} and ${best.lo.manager_name} in the table. Nothing in it.`,
+      ]);
+  return mkStory("TABLE SQUEEZE", rng.pick(["TOO CLOSE IN THE TABLE", "NOTHING BETWEEN THEM"]), body, [best.hi, best.lo], best.hi);
+}
+
+function noMansLand(a, rng) {
+  const ms = [...a.managers].sort((x, y) => x.rank - y.rank);
+  if (ms.length < 4) return null;
+  let best = null;
+  for (let i = 0; i < ms.length - 1; i++) {
+    const g = ms[i].total_points - ms[i + 1].total_points;
+    if (!best || g > best.g) best = { hi: ms[i], lo: ms[i + 1], g };
+  }
+  if (!best || best.g < 12) return null;
+  const body = rng.pick([
+    `There is a ${best.g}-point gap between ${best.hi.manager_name} (${best.hi.rank}${ordinalSuffix(best.hi.rank)}) and ${best.lo.manager_name} (${best.lo.rank}${ordinalSuffix(best.lo.rank)}). The league has split in two.`,
+    `The table has a canyon in it: ${best.g} points between ${best.hi.manager_name} and ${best.lo.manager_name}.`,
+  ]);
+  return mkStory("TABLE SPLIT", rng.pick(["NO MAN'S LAND", "THE GREAT DIVIDE"]), body, [best.hi, best.lo], best.hi);
+}
+
+function positionSplit(a, rng) {
+  const names = { 1: "Goalkeepers", 2: "Defenders", 3: "Midfielders", 4: "Forwards" };
+  const tot = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  for (const m of a.managers) for (const l of startersOf(m)) if (tot[l.element_type] !== undefined) tot[l.element_type] += l.final_points;
+  const all = Object.values(tot).reduce((s, v) => s + v, 0);
+  if (all <= 0) return null;
+  const order = Object.keys(tot).sort((x, y) => tot[y] - tot[x]);
+  const top = order[0], bot = order[order.length - 1];
+  const pc = (t) => Math.round((100 * tot[t]) / all);
+  const body = rng.pick([
+    `${names[top]} delivered ${pc(top)}% of every point scored by starters across the league this week. ${names[bot]} chipped in just ${pc(bot)}%.`,
+    `Where did the points come from? ${names[top]} led the way with ${pc(top)}%, while ${names[bot]} brought only ${pc(bot)}%.`,
+  ]);
+  return mkStory("WHERE THE POINTS CAME FROM", rng.pick([`${UP(names[top])} RULED`, "A POSITION-BY-POSITION LOOK"]), body, []);
+}
+
+function benchBill(a, rng) {
+  const ms = withSquad(a);
+  const total = ms.reduce((s, m) => s + m.bench_points, 0);
+  if (total < 10) return null;
+  const top = topBy(ms, (m) => m.bench_points, rng);
+  const body = rng.pick([
+    `${total} points sat on benches across the league this week. ${top.manager_name} alone left ${top.bench_points} of them unused.`,
+    `Add it all up and your benches scored ${total} points that counted for nothing. ${top.manager_name} led the waste with ${top.bench_points}.`,
+  ]);
+  return mkStory("THE BENCH BILL", rng.pick([`${total} POINTS ON THE BENCH`, "THE COST OF THE BENCH"]), body, [top], top);
+}
+
+function landslide(a, rng) {
+  const ms = [...a.managers].sort((x, y) => y.event_total - x.event_total);
+  if (ms.length < 3) return null;
+  const gap = ms[0].event_total - ms[1].event_total;
+  if (gap < 10) return null;
+  const body = rng.pick([
+    `${ms[0].manager_name} won the gameweek by ${gap} points over ${ms[1].manager_name}. That is not a win, it is a landslide.`,
+    `A ${gap}-point margin separated first (${ms[0].manager_name}) from second (${ms[1].manager_name}). Nobody was in the same postcode.`,
+  ]);
+  return mkStory("LANDSLIDE", rng.pick(["NOT EVEN CLOSE", `A ${gap}-POINT WINNING MARGIN`]), body, [ms[0], ms[1]], ms[0]);
+}
+
+function differentialDisaster(a, rng) {
+  const own = a.ownership || {};
+  const rows = [];
+  for (const m of withSquad(a)) {
+    for (const l of startersOf(m)) {
+      if ((own[l.id] || 0) === 1 && l.minutes >= 60 && l.raw_points <= 1) rows.push({ m, l });
+    }
+  }
+  if (!rows.length) return null;
+  const x = rng.pick(rows);
+  const body = rng.pick([
+    `${x.m.manager_name} took a punt on ${x.l.name}, who nobody else owns, and it backfired. ${ptsWord(x.l.raw_points)} in ${x.l.minutes} minutes.`,
+    `The differential that was meant to win ${x.m.manager_name} the week: ${x.l.name} played ${x.l.minutes} minutes and picked up ${ptsWord(x.l.raw_points)}.`,
+    `Going against the grain cost ${x.m.manager_name}. ${x.l.name} is in nobody else's team, and it showed with ${ptsWord(x.l.raw_points)}.`,
+  ]);
+  return mkStory("DIFFERENTIAL DISASTER", rng.pick(["THE PUNT THAT FAILED", "WHEN DIFFERENTIALS BITE BACK"]), body, [x.m], x.m);
+}
+
 const STORY_BUILDERS = {
   motm: motmStory, rank_movement: rankMovementStory, flop: flopStory,
-  captain_clash: captainClash, template_watch: templateWatch,
+  captain_clash: captainClash,
   bench_blunder: benchBlunder, differential,
   title_race: titleRace, photo_finish: photoFinish, spread,
   above_average: aboveAverage, template_flop: templateFlop,
   unowned_star: unownedStar, captain_consensus: captainConsensus,
   dud_count: dudCount, position_spotlight: positionSpotlight,
   chip_watch: chipWatch, transfer_hit: transferHit, squad_value: squadValue,
+  goalkeeper_gloves: goalkeeperGloves, back_four: backFour, striker_drought: strikerDrought,
+  vice_regret: viceRegret, double_digits: doubleDigits, blank_brigade: blankBrigade,
+  ghost_starters: ghostStarters, lone_captain: loneCaptain, catch_up: catchUp,
+  group_average: groupAverage, century_club: centuryClub, one_man_band: oneManBand,
+  team_effort: teamEffort, swapped_places: swappedPlaces, tightest_gap: tightestGap,
+  no_mans_land: noMansLand, position_split: positionSplit, bench_bill: benchBill,
+  landslide, differential_disaster: differentialDisaster,
 };
 
 /* ---------- the rotation schedule ---------- */
@@ -876,6 +1191,10 @@ function buildAllStories(awards, maxStories = 8) {
 
 /* =========================================================================
    Weekly team titles
+   Titles are earned by what happened THIS week (a chip, a hit, a big
+   captain score, a close chase), never by a lasting habit like "plays the
+   template XI". That way the same people are not tagged the same way every
+   single week.
    ========================================================================= */
 const TITLE_BANKS = {
   top_scorer: { titles: ["The Untouchables", "Gameweek Royalty", "Boss Mode: Activated", "Nailed It", "Main Character", "Different Class"], blurb: "Top score in the league this week. Nothing more to say." },
@@ -885,25 +1204,37 @@ const TITLE_BANKS = {
   bench_flop: { titles: ["Bench Warmers Local 401", "Parking Points", "The Substitutes' Union", "Points In Waiting", "Dugout Dividends", "Bench Mob"], blurb: "Left a small fortune of points warming the bench." },
   big_riser: { titles: ["Fast & Furious", "Rocket Ship", "The Comeback Kid", "Climbing Frame", "Moving On Up", "Table Tourist"], blurb: "Climbing the table at pace." },
   big_faller: { titles: ["Free Falling", "Elevator Going Down", "The Great Collapse", "Slippery Slope", "Mind The Gap", "Going Down"], blurb: "A rough week for the league table." },
-  biggest_sheep: { titles: ["Chief Copycat", "Captain Template", "One Of The Flock", "Safety First", "Follow The Leader", "Copy, Paste"], blurb: "Playing it extremely safe with the template XI." },
-  biggest_maverick: { titles: ["Lone Wolf", "The Rebel", "Differential Energy", "Own Path", "Off The Map", "Chaos Agent"], blurb: "Doing their own thing, for better or worse." },
-  top_third: { titles: ["The Contenders", "Form Team", "Cruising", "Top Table", "Title Talk", "Looking Sharp"], blurb: "Sitting pretty near the top of the table." },
-  mid_table: { titles: ["Steady Eddie", "Comfortably Mid", "The Quiet Achiever", "Nothing To See Here", "Cruise Control", "Safe In The Middle"], blurb: "Not making headlines, not making disasters either." },
-  bottom_third: { titles: ["Project Next Season", "The Rebuild", "Character Building", "Long Game", "Dark Horse (Allegedly)", "Hope Springs Eternal"], blurb: "Games in hand. Plenty of them." },
+  chip_player: { titles: ["Button Pusher", "Chip Shot", "Gadget Gary", "All In", "Secret Weapon Unlocked", "The Big Gamble"], blurb: "Played a chip this week. Brave." },
+  hit_taker: { titles: ["Paid To Play", "Hit Man", "Expensive Taste", "Worth The Hit?", "Points For Players", "Spending Spree"], blurb: "Paid points to shake the squad up." },
+  tinkerer: { titles: ["The Tinkerman", "Itchy Fingers", "Revolving Door", "Busy Bee", "Transfer Window Shopper", "Fresh Legs"], blurb: "Busy in the transfer market this week." },
+  differential_hero: { titles: ["Differential Dealer", "Needle In A Haystack", "Secret Sauce", "Hidden Gem Hunter", "The Scout", "One Of A Kind"], blurb: "A rarely owned player came up big." },
+  captain_haul: { titles: ["Armband Dividends", "Captain's Orders", "Skipper Delivered", "Good Call, Skip", "The Armband Paid Off", "Leading From The Front"], blurb: "The captain pick came good." },
+  above_avg: { titles: ["Beating The Average", "Above Par", "Better Than Most", "Ahead Of The Pack", "Quietly Good", "Solid Showing"], blurb: "Comfortably beat the average FPL manager." },
+  below_avg: { titles: ["Under Par", "Off The Pace", "One To Forget", "Needs A Cuppa", "Rough Patch", "Below Average Joe"], blurb: "Well short of the average FPL manager." },
+  close_chase: { titles: ["Breathing Down Necks", "Hot On Their Heels", "In The Mix", "Within Touching Distance", "Nipping At Heels", "Photo Finish"], blurb: "Only a handful of points off the place above." },
+  league_leader: { titles: ["Top Of The Pile", "Pole Position", "The Hunted", "Sitting Pretty", "Head Of The Table", "King Of The Hill"], blurb: "Leading the league. Everyone is chasing." },
+  league_basement: { titles: ["Basement Dweller", "Rock Bottom", "Spoon Holder", "The Foundations", "Bottom Bunk", "Keeping The Seat Warm"], blurb: "Bottom of the table, with everything to play for." },
+  top_third: { titles: ["The Contenders", "Form Team", "Cruising", "Top Table", "Title Talk", "Looking Sharp", "Rising Force", "In The Hunt"], blurb: "Sitting pretty near the top of the table." },
+  mid_table: { titles: ["Steady Eddie", "Comfortably Mid", "The Quiet Achiever", "Nothing To See Here", "Cruise Control", "Safe In The Middle", "Plenty To Prove", "The Swing Vote"], blurb: "Not making headlines, not making disasters either." },
+  bottom_third: { titles: ["Project Next Season", "The Rebuild", "Character Building", "Long Game", "Dark Horse (Allegedly)", "Hope Springs Eternal", "Plenty Of Time", "Slow Starter"], blurb: "Games in hand. Plenty of them." },
 };
 
 function assignTitles(managers, awards) {
   const n = managers.length;
   const topThirdCutoff = Math.max(1, Math.round(n / 3));
   const bottomThirdCutoff = n - topThirdCutoff;
+  const avg = awards.league_average;
+  const own = awards.ownership || {};
 
   const motmId = awards.motm ? awards.motm.entry_id : null;
   const flopId = awards.flop ? awards.flop.entry_id : null;
   const bestCapId = awards.best_captain ? awards.best_captain.entry_id : null;
   const worstCapId = awards.worst_captain ? awards.worst_captain.entry_id : null;
   const benchId = awards.bench_flop && awards.bench_flop.bench_points >= 8 ? awards.bench_flop.entry_id : null;
-  const sheepId = awards.biggest_sheep ? awards.biggest_sheep.entry_id : null;
-  const maverickId = awards.biggest_maverick ? awards.biggest_maverick.entry_id : null;
+
+  const byRank = [...managers].sort((a, b) => a.rank - b.rank);
+  const gapAbove = {};
+  byRank.forEach((m, i) => { gapAbove[m.entry_id] = i > 0 ? byRank[i - 1].total_points - m.total_points : null; });
 
   // one seeded, shuffled queue per category: the same week always gives the
   // same titles, a different week gives different ones, and managers sharing
@@ -916,11 +1247,16 @@ function assignTitles(managers, awards) {
     return queues[category].shift();
   };
 
+  const rng = makeRng(`${awards.seed || "seed"}:titles`);
+  const used = {};
   const titles = {};
-  for (const m of managers) {
+  // Managers are handled in a shuffled order so nobody always gets first
+  // pick of the interesting titles.
+  for (const m of rng.shuffle([...managers])) {
     const eid = m.entry_id;
     const move = m.last_rank ? m.last_rank - m.rank : 0;
-    let category;
+    let category = null;
+
     if (eid === motmId) category = "top_scorer";
     else if (eid === flopId) category = "bottom_scorer";
     else if (eid === bestCapId && bestCapId !== motmId) category = "best_captain";
@@ -928,15 +1264,210 @@ function assignTitles(managers, awards) {
     else if (eid === benchId) category = "bench_flop";
     else if (move >= 2) category = "big_riser";
     else if (move <= -2) category = "big_faller";
-    else if (eid === sheepId) category = "biggest_sheep";
-    else if (eid === maverickId) category = "biggest_maverick";
-    else if (m.rank <= topThirdCutoff) category = "top_third";
-    else if (m.rank > bottomThirdCutoff) category = "bottom_third";
-    else category = "mid_table";
 
+    if (!category) {
+      // Everything else: work out what is genuinely notable about this
+      // manager's week, then pick one, leaning away from titles that
+      // others in the league already got.
+      const eligible = [];
+      const starters = (m.squad || []).filter((l) => l.multiplier > 0);
+      const cap = (m.squad || []).find((l) => l.is_captain);
+      if (m.active_chip) eligible.push(["chip_player", 9]);
+      if (m.transfers_cost > 0) eligible.push(["hit_taker", 6]);
+      else if (m.transfers >= 3) eligible.push(["tinkerer", 5]);
+      const rare = starters.filter((l) => l.final_points >= 8 && (own[l.id] || 1) <= 2);
+      if (rare.length) eligible.push(["differential_hero", 7]);
+      if (cap && cap.final_points >= 16) eligible.push(["captain_haul", 5]);
+      if (avg != null) {
+        const d = m.event_total - avg;
+        if (d >= 12) eligible.push(["above_avg", 4]);
+        if (d <= -12) eligible.push(["below_avg", 4]);
+      }
+      if (m.rank > 1 && gapAbove[eid] != null && gapAbove[eid] <= 6) eligible.push(["close_chase", 4]);
+      if (m.rank === 1) eligible.push(["league_leader", 5]);
+      if (m.rank === n && n > 2) eligible.push(["league_basement", 5]);
+      eligible.push([m.rank <= topThirdCutoff ? "top_third" : m.rank > bottomThirdCutoff ? "bottom_third" : "mid_table", 1]);
+
+      const weighted = eligible.map(([c, w]) => [c, w / (1 + 1.5 * (used[c] || 0))]);
+      let r = rng.next() * weighted.reduce((s, [, w]) => s + w, 0);
+      category = weighted[weighted.length - 1][0];
+      for (const [c, w] of weighted) {
+        if ((r -= w) <= 0) { category = c; break; }
+      }
+    }
+
+    used[category] = (used[category] || 0) + 1;
     titles[eid] = { title: nextTitle(category), category, blurb: TITLE_BANKS[category].blurb };
   }
   return titles;
+}
+
+/* =========================================================================
+   The Full Roll Call: one line about every single manager
+   ========================================================================= */
+const CHIP_NAMES = { wildcard: "Wildcard", freehit: "Free Hit", bboost: "Bench Boost", "3xc": "Triple Captain", manager: "Assistant Manager" };
+
+function buildRollCall(managers, awards) {
+  const n = managers.length;
+  const avg = awards.league_average;
+  const own = awards.ownership || {};
+  const motmId = awards.motm ? awards.motm.entry_id : null;
+  const flopId = awards.flop ? awards.flop.entry_id : null;
+  const rng = makeRng(`${awards.seed || "seed"}:rollcall`);
+
+  const byRank = [...managers].sort((a, b) => a.rank - b.rank);
+  const idx = {};
+  byRank.forEach((m, i) => { idx[m.entry_id] = i; });
+
+  // first names, unless two managers share one
+  const firstCount = {};
+  for (const m of managers) {
+    const f = String(m.manager_name || "").split(" ")[0];
+    firstCount[f] = (firstCount[f] || 0) + 1;
+  }
+  const nameOf = (m) => {
+    const f = String(m.manager_name || "").split(" ")[0];
+    return firstCount[f] > 1 ? m.manager_name : f;
+  };
+
+  const used = {};
+  const lines = {};
+  for (const m of rng.shuffle([...managers])) {
+    const f = nameOf(m);
+    const pts = m.event_total;
+    const squad = m.squad || [];
+    const starters = squad.filter((l) => l.multiplier > 0);
+    const cap = squad.find((l) => l.is_captain);
+    const best = starters.length ? starters.reduce((a, b) => (a.final_points >= b.final_points ? a : b)) : null;
+    const i = idx[m.entry_id];
+    const above = i > 0 ? byRank[i - 1] : null;
+    const below = i < n - 1 ? byRank[i + 1] : null;
+    const gapUp = above ? above.total_points - m.total_points : null;
+    const gapDown = below ? m.total_points - below.total_points : null;
+    const move = rankMove(m);
+    const pos = `${m.rank}${ordinalSuffix(m.rank)}`;
+    const obs = [];
+    const add = (id, weight, variants) => obs.push({ id, weight, variants });
+
+    if (m.entry_id === motmId) add("gw_top", 12, [
+      `${f} had the best score of the week, ${pts} points.`,
+      `${pts} points made ${f} the top scorer of the gameweek.`,
+      `Nobody in the league beat ${f}'s ${pts} this week.`]);
+    if (m.entry_id === flopId) add("gw_last", 12, [
+      `${f} brought up the rear with ${pts} points.`,
+      `${pts} points was the lowest score in the league, and it belongs to ${f}.`,
+      `${f} had the week's worst return at ${pts}. It can only get better.`]);
+    if (m.active_chip) {
+      const c = CHIP_NAMES[m.active_chip] || m.active_chip;
+      add("chip", 10, [
+        `${f} played the ${c} chip this week and finished on ${pts}.`,
+        `The ${c} chip came out for ${f}, who scored ${pts}.`,
+        `${f} cashed in the ${c} this week for ${pts} points.`]);
+    }
+    if (m.transfers_cost > 0) add("hit", 7, [
+      `${f} paid ${ptsWord(m.transfers_cost)} for extra transfers and ended on ${pts}.`,
+      `A ${m.transfers_cost} point hit for ${f}, who finished the week on ${pts}.`,
+      `${f} took a -${m.transfers_cost} and still scored ${pts}.`]);
+    else if (m.transfers >= 2) add("busy", 4, [
+      `${f} made ${m.transfers} transfers without taking a hit, then scored ${pts}.`,
+      `${m.transfers} fresh faces in ${f}'s squad this week, good for ${pts} points.`,
+      `${f} reshuffled with ${m.transfers} moves and finished on ${pts}.`]);
+    if (cap && cap.final_points >= 16) add("cap_haul", 6, [
+      `${f}'s armband on ${cap.name} was worth ${cap.final_points} points.`,
+      `${cap.name} repaid ${f}'s faith as captain with ${cap.final_points} points.`,
+      `Captain ${cap.name} delivered ${cap.final_points} for ${f}.`]);
+    if (cap && cap.raw_points <= 3) add("cap_dud", 6, [
+      `${f} gave the armband to ${cap.name}, who returned ${ptsWord(cap.final_points)}.`,
+      `${cap.name} as captain brought ${f} just ${ptsWord(cap.final_points)}.`,
+      `Captain ${cap.name} did little for ${f}, with ${cap.final_points} in total.`]);
+    if (m.bench_points >= 7) add("bench", 5, [
+      `${f} left ${m.bench_points} points on the bench.`,
+      `${m.bench_points} points sat unused on ${f}'s bench.`,
+      `The bench scored ${m.bench_points} for ${f} and none of it counted.`]);
+    if (move >= 2) add("up", 5, [
+      `${f} climbed ${move} places to ${pos}.`,
+      `Up ${move} spots for ${f}, now ${pos}.`,
+      `${f} moved up ${move} places into ${pos}.`]);
+    else if (move === 1) add("up1", 2, [
+      `${f} edged up a place to ${pos}.`,
+      `A small step up for ${f}, now ${pos}.`]);
+    if (move <= -2) add("down", 5, [
+      `${f} slipped ${-move} places to ${pos}.`,
+      `Down ${-move} spots for ${f}, who is now ${pos}.`,
+      `${f} dropped ${-move} places and sits ${pos}.`]);
+    else if (move === -1) add("down1", 2, [
+      `${f} lost a place and is now ${pos}.`,
+      `A small slip for ${f}, now ${pos}.`]);
+    const secret = starters.filter((l) => l.final_points >= 6 && (own[l.id] || 1) === 1).sort((a, b) => b.final_points - a.final_points)[0];
+    if (secret) add("unique", 6, [
+      `Only ${f} owns ${secret.name}, who returned ${secret.final_points} this week.`,
+      `${secret.name} is ${f}'s secret weapon, owned by nobody else here, and returned ${secret.final_points}.`,
+      `${secret.name} was in ${f}'s squad and nobody else's, and collected ${secret.final_points} points.`]);
+    if (best && best.final_points >= 6) add("best", 3, [
+      `${f}'s best performer was ${best.name} with ${ptsWord(best.final_points)}.`,
+      `${best.name} led the way for ${f} with ${best.final_points}.`,
+      `The top scorer in ${f}'s XI was ${best.name} on ${best.final_points}.`]);
+    const letdown = starters.filter((l) => !l.is_captain && l.minutes >= 60 && l.raw_points <= 1).sort((a, b) => a.raw_points - b.raw_points)[0];
+    if (letdown) add("letdown", 2.5, [
+      `${letdown.name} was the weak link in ${f}'s XI with ${ptsWord(letdown.raw_points)}.`,
+      `${f} will want to forget ${letdown.name}'s ${ptsWord(letdown.raw_points)} this week.`]);
+    if (avg != null) {
+      const d = Math.round(pts - avg);
+      if (d >= 10) add("above", 4, [
+        `${f} finished ${d} points above the average FPL manager with ${pts}.`,
+        `${pts} points put ${f} ${d} clear of the average manager.`]);
+      else if (d <= -10) add("below", 4, [
+        `${f} was ${-d} points under the average FPL manager with ${pts}.`,
+        `${pts} points left ${f} ${-d} short of the average manager.`]);
+      else if (Math.abs(d) <= 2) add("avg", 3, [
+        `${f} scored ${pts}, almost exactly the average FPL manager.`,
+        `${pts} points for ${f}, bang on the average.`]);
+    }
+    if (gapUp != null && gapUp <= 8) {
+      const a = nameOf(above);
+      add("chase", 5, gapUp === 0
+        ? [`${f} is level on points with ${a} in the table.`, `${f} and ${a} cannot be separated on points.`]
+        : [`${f} is ${ptsWord(gapUp)} behind ${a} in the table.`,
+           `Just ${ptsWord(gapUp)} separate ${f} from ${above.team_name}.`,
+           `${f} is ${gapUp} off ${a}'s place and closing.`]);
+    }
+    if (i === 0 && gapDown != null) add("leader", 6, [
+      `${f} leads the table by ${ptsWord(gapDown)}.`,
+      `${f} sits on top, ${gapDown} clear of ${below.team_name}.`,
+      `Top spot belongs to ${f}, with ${gapDown} points in hand.`]);
+    else if (gapDown != null && gapDown <= 8) {
+      const b = nameOf(below);
+      add("lead", 4, [
+        `${f} is only ${ptsWord(gapDown)} clear of ${b}.`,
+        `${b} is ${gapDown} behind ${f} and watching closely.`]);
+    }
+    if (i === n - 1 && n > 2 && gapUp != null) add("last", 5, [
+      `${f} sits last, ${ptsWord(gapUp)} off ${nameOf(above)}.`,
+      `${f} holds up the table, ${gapUp} adrift of ${nameOf(above)}.`]);
+    // always available, so every manager is guaranteed a line
+    add("plain", 1, [
+      `${f} scored ${pts} this week and sits ${pos} overall.`,
+      `${pts} points for ${f} this week, ${pos} in the table.`,
+      `${f} is ${pos} after scoring ${pts}.`]);
+
+    const weighted = obs.map((o) => [o, o.weight / (1 + 1.5 * (used[o.id] || 0))]);
+    let r = rng.next() * weighted.reduce((s, [, w]) => s + w, 0);
+    let chosen = weighted[weighted.length - 1][0];
+    for (const [o, w] of weighted) {
+      if ((r -= w) <= 0) { chosen = o; break; }
+    }
+    used[chosen.id] = (used[chosen.id] || 0) + 1;
+    lines[m.entry_id] = rng.pick(chosen.variants);
+  }
+
+  return byRank.map((m) => ({
+    entry_id: m.entry_id,
+    rank: m.rank,
+    rank_suffix: ordinalSuffix(m.rank),
+    manager_name: m.manager_name,
+    team_name: m.team_name,
+    line: lines[m.entry_id],
+  }));
 }
 
 /* =========================================================================
@@ -1209,7 +1740,7 @@ function esc(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-function renderPage(snapshot, awards, stories, standings, scout, starPlayers, topScorers) {
+function renderPage(snapshot, awards, stories, standings, scout, starPlayers, topScorers, rollCall) {
   const hero = stories[0];
   const rest = stories.slice(1);
   const generatedDate = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
@@ -1240,6 +1771,15 @@ function renderPage(snapshot, awards, stories, standings, scout, starPlayers, to
       <div class="kicker">${esc(s.kicker)}</div>
       <h3>${esc(s.headline)}</h3>
       <p>${esc(s.body)}</p>
+    </div>`).join("");
+
+  const rollCallHtml = (rollCall || []).map((r) => `
+    <div class="roll-item">
+      <div class="roll-rank">${r.rank}</div>
+      <div class="roll-body">
+        <div class="roll-who">${esc(r.manager_name)} <span>&middot; ${esc(r.team_name)}</span></div>
+        <p class="roll-line">${esc(r.line)}</p>
+      </div>
     </div>`).join("");
 
   const starPlayersHtml = (starPlayers || []).map((p, i) => `
@@ -1400,6 +1940,7 @@ function renderPage(snapshot, awards, stories, standings, scout, starPlayers, to
     ${heroHtml}
     <div class="section-head">This Week's Stories</div>
     <div class="story-grid">${storiesHtml}</div>
+    ${rollCallHtml ? `<div class="roll-head">The Full Roll Call</div><p class="roll-intro">Every manager in the league, one line each.</p><div class="roll-grid">${rollCallHtml}</div>` : ""}
     ${starPlayers && starPlayers.length ? `<div class="section-head">Biggest Returns This Week</div><p class="scout-intro">The best result any manager in your league actually got from a player this gameweek — including their captain call. This is about who benefited, not who played best.</p><div class="star-grid">${starPlayersHtml}</div>` : ""}
     ${topScorers && topScorers.length ? `<div class="section-head">Highest Scoring Players This Week</div><p class="scout-intro">The best individual performances across the whole gameweek, full stop — whether or not anyone in your league happens to own them.</p><div class="star-grid">${topScorersHtml}</div>` : ""}
     <div class="section-head">This Week's Power Rankings</div>
@@ -1432,6 +1973,7 @@ async function generateForLeague(leagueId) {
     const awards = buildAwards(snapshot);
     const stories = buildAllStories(awards);
     const titles = assignTitles(snapshot.managers, awards);
+    const rollCall = buildRollCall(snapshot.managers, awards);
     const standings = buildStandingsView(snapshot.managers, titles);
     const starPlayers = buildStarPlayers(snapshot);
     const topScorers = buildTopScorers(snapshot);
@@ -1439,7 +1981,7 @@ async function generateForLeague(leagueId) {
     const scout = await buildNextGwPreview(snapshot).catch(() => null);
 
     statusEl.textContent = "";
-    resultEl.innerHTML = renderPage(snapshot, awards, stories, standings, scout, starPlayers, topScorers);
+    resultEl.innerHTML = renderPage(snapshot, awards, stories, standings, scout, starPlayers, topScorers, rollCall);
     resultEl.scrollIntoView({ behavior: "smooth", block: "start" });
     const shareRow = document.getElementById("share-row");
     if (shareRow) shareRow.style.display = "flex";
