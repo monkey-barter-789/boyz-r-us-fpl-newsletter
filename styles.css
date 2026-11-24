@@ -181,6 +181,49 @@
   }
   .story p{margin:0;font-size:15.5px;color:var(--ink-soft);}
 
+
+  /* ---------- Full Roll Call (every manager, one line) ---------- */
+  .roll-head{
+    margin:8px 28px 4px;
+    padding-top:14px;
+    border-top:2px solid var(--ink);
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:14px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--pitch);
+  }
+  .roll-intro{margin:0 28px 6px;font-size:13.5px;color:var(--ink-soft);}
+  .roll-grid{ padding:0 28px 10px; }
+  .roll-item{
+    display:flex;
+    gap:14px;
+    align-items:flex-start;
+    padding:10px 0;
+    border-bottom:1px solid var(--rule);
+  }
+  .roll-item:last-child{ border-bottom:none; }
+  .roll-rank{
+    flex:0 0 28px;
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:20px;
+    line-height:1.1;
+    color:var(--red);
+    text-align:right;
+  }
+  .roll-who{
+    font-family:'Oswald',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    letter-spacing:.5px;
+    text-transform:uppercase;
+    color:var(--ink);
+  }
+  .roll-who span{ color:var(--ink-soft); font-weight:400; text-transform:none; letter-spacing:0; }
+  .roll-line{ margin:2px 0 0; font-size:14.5px; color:var(--ink-soft); }
+
   /* ---------- Power Rankings ---------- */
   .power-grid{
     display:grid;
@@ -692,10 +735,11 @@ body{ display:flex; flex-direction:column; align-items:center; }
     box-shadow:none;
   }
   .masthead{ padding:18px 16px 16px; }
-  .story, .power-card, .standing-row, .star-card, .card, .injury-box{
+  .story, .roll-item, .power-card, .standing-row, .star-card, .card, .injury-box{
     break-inside:avoid;
     page-break-inside:avoid;
   }
+  .roll-head, .roll-intro{ break-after:avoid; page-break-after:avoid; }
   .section-head{
     break-after:avoid;
     page-break-after:avoid;
